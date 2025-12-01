@@ -7,7 +7,7 @@ import java.sql.SQLException;
 
 public class Conexion {
     // Ajusta estos datos según tu configuración local
-    private static final String URL = "jdbc:mysql://localhost:3307/what's pix?serverTimezone=UTC";
+    private static final String URL = "jdbc:mysql://localhost:3306/what's pix?serverTimezone=UTC";
     private static final String USER = "root"; 
     private static final String PASSWORD = ""; // <--- Pon tu contraseña aquí
 
