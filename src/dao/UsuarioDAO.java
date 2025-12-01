@@ -182,4 +182,67 @@ public class UsuarioDAO {
             return false;
         }
     }
+    
+    public java.util.List<Usuario> obtenerUsuariosConectados() {
+        java.util.List<Usuario> usuarios = new java.util.ArrayList<>();
+        String sql = "SELECT pk_usuario, nombre, username, estado, bloqueado FROM usuarios WHERE estado = 1";
+        try (Connection con = Conexion.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                Usuario u = new Usuario();
+                u.setPk_usuario(rs.getInt("pk_usuario"));
+                u.setNombre(rs.getString("nombre"));
+                u.setUsername(rs.getString("username"));
+                u.setEstado(rs.getInt("estado"));
+                u.setBloqueado(rs.getBoolean("bloqueado"));
+                usuarios.add(u);
+            }
+        } catch (SQLException e) {
+            System.err.println("Error al obtener usuarios conectados: " + e.getMessage());
+        }
+        return usuarios;
+    }
+    
+    public java.util.List<Usuario> obtenerTodosUsuarios() {
+        java.util.List<Usuario> usuarios = new java.util.ArrayList<>();
+        String sql = "SELECT pk_usuario, nombre, username, estado, bloqueado FROM usuarios";
+        try (Connection con = Conexion.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                Usuario u = new Usuario();
+                u.setPk_usuario(rs.getInt("pk_usuario"));
+                u.setNombre(rs.getString("nombre"));
+                u.setUsername(rs.getString("username"));
+                u.setEstado(rs.getInt("estado"));
+                u.setBloqueado(rs.getBoolean("bloqueado"));
+                usuarios.add(u);
+            }
+        } catch (SQLException e) {
+            System.err.println("Error al obtener usuarios: " + e.getMessage());
+        }
+        return usuarios;
+    }
+    
+    public Usuario obtenerUsuarioPorId(int id) {
+        String sql = "SELECT pk_usuario, nombre, username, estado, bloqueado FROM usuarios WHERE pk_usuario = ?";
+        try (Connection con = Conexion.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                Usuario u = new Usuario();
+                u.setPk_usuario(rs.getInt("pk_usuario"));
+                u.setNombre(rs.getString("nombre"));
+                u.setUsername(rs.getString("username"));
+                u.setEstado(rs.getInt("estado"));
+                u.setBloqueado(rs.getBoolean("bloqueado"));
+                return u;
+            }
+        } catch (SQLException e) {
+            System.err.println("Error al obtener usuario: " + e.getMessage());
+        }
+        return null;
+    }
 }

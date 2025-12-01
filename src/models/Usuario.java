@@ -88,17 +88,21 @@ public class Usuario implements Serializable {
     public int getEstado() {
         return estado;
     }
-
     public void setEstado(int estado) {
         this.estado = estado;
     }
-
+    
     public String getIp() {
         return ip;
     }
-
     public void setIp(String ip) {
         this.ip = ip;
     }
     
+    public Timestamp getFecha_registro() {
+        return fecha_registro;
+    }
+    public void setFecha_registro(Timestamp fecha_registro) {
+        this.fecha_registro = fecha_registro;
+    }
 }
