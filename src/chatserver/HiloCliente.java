@@ -81,10 +81,14 @@ private void procesarPeticion(Peticion p) {
 
                 } else {
                      boolean bloqueado = dao.estaBloqueado(uLogin.getUsername());
+                     int intentos = dao.obtenerIntentos(uLogin.getUsername());
+                     
                      if (bloqueado) {
-                         enviar(new Peticion("LOGIN_BLOQUEADO", "Cuenta bloqueada."));
+                         enviar(new Peticion("LOGIN_BLOQUEADO", "Tu cuenta ha sido bloqueada. Debes recuperar tu contraseña."));
+                     } else if (intentos >= 3) {
+                         enviar(new Peticion("LOGIN_BLOQUEADO", "Demasiados intentos fallidos. Debes recuperar tu contraseña."));
                      } else {
-                         enviar(new Peticion("LOGIN_ERROR", "Credenciales incorrectas."));
+                         enviar(new Peticion("LOGIN_ERROR", "Credenciales incorrectas. Intentos: " + intentos + "/3"));
                      }
                 }
                 break;
@@ -97,6 +101,23 @@ private void procesarPeticion(Peticion p) {
                     servidor.log("Nuevo registro: " + uReg.getUsername());
                 } else {
                     enviar(new Peticion("REGISTRO_ERROR", "El usuario ya existe"));
+                }
+                break;
+                
+            case "RECUPERAR_CONTRASENA":
+                String[] datosRecuperacion = (String[]) p.getDatos();
+                String usernameRec = datosRecuperacion[0];
+                String nuevaPass = datosRecuperacion[1];
+                
+                if (dao.existeUsuario(usernameRec)) {
+                    if (dao.recuperarContrasena(usernameRec, nuevaPass)) {
+                        enviar(new Peticion("RECUPERAR_OK", "Contraseña recuperada exitosamente"));
+                        servidor.log("Contraseña recuperada para: " + usernameRec);
+                    } else {
+                        enviar(new Peticion("RECUPERAR_ERROR", "Error al recuperar contraseña"));
+                    }
+                } else {
+                    enviar(new Peticion("RECUPERAR_ERROR", "Usuario no encontrado"));
                 }
                 break;
 

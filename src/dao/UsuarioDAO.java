@@ -147,4 +147,39 @@ public class UsuarioDAO {
         } catch (SQLException e) { e.printStackTrace(); }
         return false;
     }
+    
+    public int obtenerIntentos(String username) {
+        String sql = "SELECT intentos_login FROM usuarios WHERE username = ?";
+        try (Connection con = Conexion.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt("intentos_login");
+        } catch (SQLException e) { e.printStackTrace(); }
+        return 0;
+    }
+    
+    public boolean existeUsuario(String username) {
+        String sql = "SELECT COUNT(*) FROM usuarios WHERE username = ?";
+        try (Connection con = Conexion.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, username);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) return rs.getInt(1) > 0;
+        } catch (SQLException e) { e.printStackTrace(); }
+        return false;
+    }
+    
+    public boolean recuperarContrasena(String username, String nuevaPassword) {
+        String sql = "UPDATE usuarios SET password = ?, bloqueado = 0, intentos_login = 0 WHERE username = ?";
+        try (Connection con = Conexion.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, nuevaPassword);
+            ps.setString(2, username);
+            return ps.executeUpdate() > 0;
+        } catch (SQLException e) {
+            System.err.println("Error al recuperar contraseña: " + e.getMessage());
+            return false;
+        }
+    }
 }
