@@ -7,7 +7,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 public class UsuarioDAO {
     public boolean registrar(Usuario u) {
-        String sql = "INSERT INTO usuarios (nombre, username, password, ip, estado) VALUES (?, ?, ?, ?, 1)";
+        // Verificar si el usuario ya existe
+        if (existeUsuario(u.getUsername())) {
+            System.err.println("Intento de registro: El usuario '" + u.getUsername() + "' ya existe");
+            return false;
+        }
+        String sql = "INSERT INTO usuarios (nombre, username, password, ip, estado, intentos_login, bloqueado) VALUES (?, ?, ?, ?, 0, 0, 0)";
         try (Connection con = Conexion.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, u.getNombre());
@@ -15,14 +20,21 @@ public class UsuarioDAO {
             ps.setString(3, u.getPassword());
             ps.setString(4, "127.0.0.1");
             ps.executeUpdate();
+            System.out.println("Usuario registrado exitosamente: " + u.getUsername());
             return true;
         } catch (SQLException e) {
-            System.err.println("Error al registrar: " + e.getMessage());
+            String errorMsg = e.getMessage();
+            System.err.println("Error al registrar usuario '" + u.getUsername() + "': " + errorMsg);
+            // Si es error de clave duplicada, es porque el usuario ya existe
+            if (errorMsg != null && (errorMsg.contains("Duplicate") || errorMsg.contains("UNIQUE") || errorMsg.contains("username"))) {
+                System.err.println("El usuario ya existe en la base de datos");
+            }
+            e.printStackTrace();
             return false;
         }
     }
     public Usuario login(String username, String password) {
-        String sql = "SELECT * FROM usuarios WHERE username = ?";
+        String sql = "SELECT * FROM usuarios WHERE username = ? COLLATE utf8mb4_bin";
         try (Connection con = Conexion.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, username);
@@ -33,7 +45,7 @@ public class UsuarioDAO {
                     return null;
                 }
                 String passReal = rs.getString("password");
-                if (passReal.equals(password)) {
+                if (passReal != null && passReal.equals(password)) {
                     int id = rs.getInt("pk_usuario");
                     String nombre = rs.getString("nombre");
                     String user = rs.getString("username");
@@ -45,8 +57,12 @@ public class UsuarioDAO {
                     manejarFallo(username, intentos);
                     return null;
                 }
+            } else {
+                // Usuario no existe - no incrementar intentos para usuarios inexistentes
+                System.out.println("Intento de login con usuario inexistente: " + username);
             }
         } catch (SQLException e) {
+            System.err.println("Error en login: " + e.getMessage());
             e.printStackTrace();
         }
         return null;
@@ -55,18 +71,22 @@ public class UsuarioDAO {
         int nuevosIntentos = intentosActuales + 1;
         String sql;
         if (nuevosIntentos >= 3) {
-            sql = "UPDATE usuarios SET intentos_login = ?, bloqueado = 1 WHERE username = ?";
-            System.out.println("¡ALERTA! Usuario " + username + " ha sido BLOQUEADO por intentos fallidos.");
+            sql = "UPDATE usuarios SET intentos_login = ?, bloqueado = 1 WHERE username = ? COLLATE utf8mb4_bin";
+            System.out.println("¡ALERTA! Usuario " + username + " ha sido BLOQUEADO por intentos fallidos. (Intentos: " + nuevosIntentos + ")");
         } else {
-            sql = "UPDATE usuarios SET intentos_login = ? WHERE username = ?";
-            System.out.println("Usuario " + username + " falló password. Intentos: " + nuevosIntentos);
+            sql = "UPDATE usuarios SET intentos_login = ? WHERE username = ? COLLATE utf8mb4_bin";
+            System.out.println("Usuario " + username + " falló password. Intentos: " + nuevosIntentos + "/3");
         }
         try (Connection con = Conexion.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, nuevosIntentos);
             ps.setString(2, username);
-            ps.executeUpdate();
+            int filas = ps.executeUpdate();
+            if (filas == 0) {
+                System.err.println("ADVERTENCIA: No se actualizaron los intentos para usuario: " + username);
+            }
         } catch (SQLException e) {
+            System.err.println("Error al manejar fallo de login: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -90,33 +110,45 @@ public class UsuarioDAO {
         } catch (SQLException e) { e.printStackTrace(); }
     }
     public boolean estaBloqueado(String username) {
-        String sql = "SELECT bloqueado FROM usuarios WHERE username = ?";
+        String sql = "SELECT bloqueado FROM usuarios WHERE username = ? COLLATE utf8mb4_bin";
         try (Connection con = Conexion.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, username);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return rs.getBoolean("bloqueado");
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) { 
+            System.err.println("Error al verificar bloqueo: " + e.getMessage());
+            e.printStackTrace(); 
+        }
         return false;
     }
     public int obtenerIntentos(String username) {
-        String sql = "SELECT intentos_login FROM usuarios WHERE username = ?";
+        String sql = "SELECT intentos_login FROM usuarios WHERE username = ? COLLATE utf8mb4_bin";
         try (Connection con = Conexion.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, username);
             ResultSet rs = ps.executeQuery();
-            if (rs.next()) return rs.getInt("intentos_login");
-        } catch (SQLException e) { e.printStackTrace(); }
+            if (rs.next()) {
+                int intentos = rs.getInt("intentos_login");
+                return intentos;
+            }
+        } catch (SQLException e) { 
+            System.err.println("Error al obtener intentos: " + e.getMessage());
+            e.printStackTrace(); 
+        }
         return 0;
     }
     public boolean existeUsuario(String username) {
-        String sql = "SELECT COUNT(*) FROM usuarios WHERE username = ?";
+        String sql = "SELECT COUNT(*) FROM usuarios WHERE username = ? COLLATE utf8mb4_bin";
         try (Connection con = Conexion.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, username);
             ResultSet rs = ps.executeQuery();
             if (rs.next()) return rs.getInt(1) > 0;
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) { 
+            System.err.println("Error al verificar usuario: " + e.getMessage());
+            e.printStackTrace(); 
+        }
         return false;
     }
     public boolean recuperarContrasena(String username, String nuevaPassword) {

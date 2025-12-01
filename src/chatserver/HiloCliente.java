@@ -61,13 +61,15 @@ public class HiloCliente extends Thread {
                     }
                     enviar(new Peticion("LOGIN_OK", logueado));
                 } else {
-                    boolean bloqueado = usuarioDAO.estaBloqueado(uLogin.getUsername());
+                    // Obtener intentos DESPUÉS de que login() los haya incrementado
                     int intentos = usuarioDAO.obtenerIntentos(uLogin.getUsername());
+                    boolean bloqueado = usuarioDAO.estaBloqueado(uLogin.getUsername());
                     if (bloqueado) {
                         enviar(new Peticion("LOGIN_BLOQUEADO", "Tu cuenta ha sido bloqueada. Debes recuperar tu contraseña."));
-                        servidor.log("Usuario BLOQUEADO: " + uLogin.getUsername());
+                        servidor.log("Usuario BLOQUEADO: " + uLogin.getUsername() + " (Intentos: " + intentos + ")");
                     } else if (intentos >= 3) {
-                        enviar(new Peticion("LOGIN_BLOQUEADO", "Demasiados intentos fallidos. Debes recuperar tu contraseña."));
+                        enviar(new Peticion("LOGIN_BLOQUEADO", "Has alcanzado el límite de intentos. Debes recuperar tu contraseña."));
+                        servidor.log("Usuario BLOQUEADO por límite de intentos: " + uLogin.getUsername() + " (Intentos: " + intentos + ")");
                     } else {
                         enviar(new Peticion("LOGIN_ERROR", "Credenciales incorrectas. Intentos: " + intentos + "/3"));
                         servidor.log("Fallo de credenciales: " + uLogin.getUsername() + " (Intentos: " + intentos + ")");
@@ -76,12 +78,20 @@ public class HiloCliente extends Thread {
                 break;
             case "REGISTRO":
                 Usuario uReg = (Usuario) p.getDatos();
+                if (uReg.getUsername() == null || uReg.getUsername().trim().isEmpty()) {
+                    enviar(new Peticion("REGISTRO_ERROR", "El nombre de usuario no puede estar vacío"));
+                    break;
+                }
+                if (uReg.getPassword() == null || uReg.getPassword().trim().isEmpty()) {
+                    enviar(new Peticion("REGISTRO_ERROR", "La contraseña no puede estar vacía"));
+                    break;
+                }
                 boolean registrado = usuarioDAO.registrar(uReg);
                 if (registrado) {
                     enviar(new Peticion("REGISTRO_OK", "Usuario creado con éxito"));
                     servidor.log("Nuevo usuario registrado: " + uReg.getUsername());
                 } else {
-                    enviar(new Peticion("REGISTRO_ERROR", "El usuario ya existe"));
+                    enviar(new Peticion("REGISTRO_ERROR", "El usuario '" + uReg.getUsername() + "' ya existe. Por favor, elige otro nombre de usuario."));
                 }
                 break;
             case "RECUPERAR_CONTRASENA":
@@ -106,18 +116,36 @@ public class HiloCliente extends Thread {
                 servidor.log("Lista de usuarios enviada a: " + usuarioConectado.getUsername());
                 break;
             case "OBTENER_AMIGOS":
+            case "LISTAR_AMIGOS":
                 if (usuarioConectado == null) break;
                 AmistadDAO amistadDAO = new AmistadDAO();
                 List<Amistad> amigos = amistadDAO.obtenerAmigos(usuarioConectado.getPk_usuario());
-                enviar(new Peticion("LISTA_AMIGOS", amigos));
+                enviar(new Peticion("LISTA_AMIGOS_OK", amigos));
                 break;
             case "ENVIAR_SOLICITUD_AMISTAD":
+            case "ENVIAR_SOLICITUD":
                 if (usuarioConectado == null) break;
-                int idDestinatario = (Integer) p.getDatos();
+                Object datosSolicitud = p.getDatos();
+                int idDestinatario;
+                if (datosSolicitud instanceof Integer) {
+                    idDestinatario = (Integer) datosSolicitud;
+                } else if (datosSolicitud instanceof String) {
+                    // Si es un username, obtener el ID
+                    UsuarioDAO usuarioDAO5 = new UsuarioDAO();
+                    Usuario destinatario = usuarioDAO5.obtenerUsuarioPorUsername((String) datosSolicitud);
+                    if (destinatario == null) {
+                        enviar(new Peticion("SOLICITUD_ERROR", "Usuario no encontrado"));
+                        break;
+                    }
+                    idDestinatario = destinatario.getPk_usuario();
+                } else {
+                    enviar(new Peticion("SOLICITUD_ERROR", "Datos inválidos"));
+                    break;
+                }
                 Amistad solicitud = new Amistad(usuarioConectado.getPk_usuario(), idDestinatario);
                 AmistadDAO amistadDAO2 = new AmistadDAO();
                 if (amistadDAO2.enviarSolicitud(solicitud)) {
-                    enviar(new Peticion("SOLICITUD_ENVIADA", "Solicitud de amistad enviada"));
+                    enviar(new Peticion("SOLICITUD_ENVIADA_OK", "Solicitud de amistad enviada"));
                     servidor.log(usuarioConectado.getUsername() + " envió solicitud a usuario ID: " + idDestinatario);
                     notificarUsuario(idDestinatario, "NUEVA_SOLICITUD_AMISTAD", null);
                 } else {
@@ -125,11 +153,12 @@ public class HiloCliente extends Thread {
                 }
                 break;
             case "ACEPTAR_SOLICITUD_AMISTAD":
+            case "ACEPTAR_SOLICITUD":
                 if (usuarioConectado == null) break;
                 int pkAmistad = (Integer) p.getDatos();
                 AmistadDAO amistadDAO3 = new AmistadDAO();
                 if (amistadDAO3.aceptarSolicitud(pkAmistad)) {
-                    enviar(new Peticion("SOLICITUD_ACEPTADA", "Solicitud aceptada"));
+                    enviar(new Peticion("ACEPTAR_SOLICITUD_OK", "Solicitud aceptada"));
                     servidor.log(usuarioConectado.getUsername() + " aceptó una solicitud de amistad");
                 } else {
                     enviar(new Peticion("SOLICITUD_ERROR", "Error al aceptar solicitud"));
@@ -146,10 +175,20 @@ public class HiloCliente extends Thread {
                 }
                 break;
             case "OBTENER_SOLICITUDES":
+            case "LISTAR_SOLICITUDES":
                 if (usuarioConectado == null) break;
                 AmistadDAO amistadDAO5 = new AmistadDAO();
                 List<Amistad> solicitudes = amistadDAO5.obtenerSolicitudesPendientes(usuarioConectado.getPk_usuario());
-                enviar(new Peticion("LISTA_SOLICITUDES", solicitudes));
+                // Convertir a formato esperado por el cliente
+                java.util.ArrayList<String> solicitudesFormato = new java.util.ArrayList<>();
+                for (Amistad a : solicitudes) {
+                    UsuarioDAO usuarioDAO4 = new UsuarioDAO();
+                    Usuario solicitante = usuarioDAO4.obtenerUsuarioPorId(a.getFk_usuario1() == usuarioConectado.getPk_usuario() ? a.getFk_usuario2() : a.getFk_usuario1());
+                    if (solicitante != null) {
+                        solicitudesFormato.add(solicitante.getUsername() + ":" + a.getPk_amistad());
+                    }
+                }
+                enviar(new Peticion("LISTA_SOLICITUDES_OK", solicitudesFormato));
                 break;
             case "ENVIAR_MENSAJE_PRIVADO":
                 if (usuarioConectado == null) break;
@@ -159,7 +198,8 @@ public class HiloCliente extends Thread {
                 if (amistadDAO6.sonAmigos(usuarioConectado.getPk_usuario(), mensaje.getFk_destinatario())) {
                     MensajeDAO mensajeDAO = new MensajeDAO();
                     mensajeDAO.guardarMensaje(mensaje);
-                    boolean enviado = notificarUsuario(mensaje.getFk_destinatario(), "MENSAJE_PRIVADO", mensaje);
+                    mensaje.setNombreRemitente(usuarioConectado.getUsername());
+                    boolean enviado = notificarUsuario(mensaje.getFk_destinatario(), "RECIBIR_MENSAJE", mensaje);
                     if (!enviado) {
                         MensajePendienteDAO mpDAO2 = new MensajePendienteDAO();
                         MensajePendiente mp = new MensajePendiente();
@@ -215,24 +255,85 @@ public class HiloCliente extends Thread {
                 servidor.log(usuarioConectado.getUsername() + " envió mensaje para usuario ID: " + mensajeSimple.getFk_destinatario());
                 break;
             case "OBTENER_HISTORIAL":
+            case "PEDIR_HISTORIAL":
                 if (usuarioConectado == null) break;
-                int idOtroUsuario = (Integer) p.getDatos();
+                Object datosHistorial = p.getDatos();
+                int idOtroUsuario;
+                if (datosHistorial instanceof Integer) {
+                    idOtroUsuario = (Integer) datosHistorial;
+                } else {
+                    // Si es un String (username), obtener el ID
+                    UsuarioDAO usuarioDAO3 = new UsuarioDAO();
+                    Usuario otroUsuario = usuarioDAO3.obtenerUsuarioPorUsername((String) datosHistorial);
+                    if (otroUsuario == null) break;
+                    idOtroUsuario = otroUsuario.getPk_usuario();
+                }
                 MensajeDAO mensajeDAO2 = new MensajeDAO();
                 List<Mensaje> historial = mensajeDAO2.obtenerHistorial(usuarioConectado.getPk_usuario(), idOtroUsuario);
-                enviar(new Peticion("HISTORIAL_MENSAJES", historial));
+                Object[] paquete = {(String) (datosHistorial instanceof String ? datosHistorial : null), historial};
+                enviar(new Peticion("HISTORIAL_OK", paquete));
                 break;
             case "CREAR_GRUPO":
                 if (usuarioConectado == null) break;
-                Grupo grupo = (Grupo) p.getDatos();
+                Object datosGrupo = p.getDatos();
+                Grupo grupo;
+                if (datosGrupo instanceof Grupo) {
+                    grupo = (Grupo) datosGrupo;
+                } else if (datosGrupo instanceof String) {
+                    // Formato: "titulo:invitados"
+                    String[] partes = ((String) datosGrupo).split(":", 2);
+                    String titulo = partes[0];
+                    String invitadosStr = partes.length > 1 ? partes[1] : "";
+                    grupo = new Grupo(titulo, usuarioConectado.getPk_usuario());
+                    // Procesar invitados si existen
+                    if (!invitadosStr.trim().isEmpty()) {
+                        String[] usernames = invitadosStr.split(",");
+                        InvitacionGrupoDAO invDAO5 = new InvitacionGrupoDAO();
+                        UsuarioDAO usuarioDAO6 = new UsuarioDAO();
+                        for (String username : usernames) {
+                            username = username.trim();
+                            if (!username.isEmpty()) {
+                                Usuario invitado = usuarioDAO6.obtenerUsuarioPorUsername(username);
+                                if (invitado != null && invitado.getPk_usuario() != usuarioConectado.getPk_usuario()) {
+                                    // Se enviará la invitación después de crear el grupo
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    enviar(new Peticion("GRUPO_ERROR", "Datos inválidos"));
+                    break;
+                }
                 grupo.setFk_creador(usuarioConectado.getPk_usuario());
                 GrupoDAO grupoDAO = new GrupoDAO();
                 int pkGrupo = grupoDAO.crearGrupo(grupo);
                 if (pkGrupo > 0) {
                     grupo.setPk_grupo(pkGrupo);
-                    enviar(new Peticion("GRUPO_CREADO", grupo));
+                    // Enviar invitaciones si se proporcionaron
+                    if (datosGrupo instanceof String) {
+                        String[] partes = ((String) datosGrupo).split(":", 2);
+                        String invitadosStr = partes.length > 1 ? partes[1] : "";
+                        if (!invitadosStr.trim().isEmpty()) {
+                            String[] usernames = invitadosStr.split(",");
+                            InvitacionGrupoDAO invDAO6 = new InvitacionGrupoDAO();
+                            UsuarioDAO usuarioDAO7 = new UsuarioDAO();
+                            for (String username : usernames) {
+                                username = username.trim();
+                                if (!username.isEmpty()) {
+                                    Usuario invitado = usuarioDAO7.obtenerUsuarioPorUsername(username);
+                                    if (invitado != null && invitado.getPk_usuario() != usuarioConectado.getPk_usuario()) {
+                                        InvitacionGrupo invitacion = new InvitacionGrupo(pkGrupo, invitado.getPk_usuario(), usuarioConectado.getPk_usuario());
+                                        invDAO6.crearInvitacion(invitacion);
+                                        notificarUsuario(invitado.getPk_usuario(), "NUEVA_INVITACION_GRUPO", invitacion);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    enviar(new Peticion("CREAR_GRUPO_OK", "Grupo creado exitosamente"));
                     servidor.log(usuarioConectado.getUsername() + " creó el grupo: " + grupo.getTitulo());
                 } else {
-                    enviar(new Peticion("GRUPO_ERROR", "Error al crear grupo"));
+                    enviar(new Peticion("ERROR_GRUPO", "Error al crear grupo"));
                 }
                 break;
             case "INVITAR_A_GRUPO":
@@ -256,8 +357,30 @@ public class HiloCliente extends Thread {
                 }
                 break;
             case "ACEPTAR_INVITACION_GRUPO":
+            case "ACEPTAR_GRUPO":
                 if (usuarioConectado == null) break;
-                int pkInvitacion = (Integer) p.getDatos();
+                Object datosAceptar = p.getDatos();
+                int pkInvitacion;
+                if (datosAceptar instanceof Integer) {
+                    pkInvitacion = (Integer) datosAceptar;
+                } else {
+                    // Si es un ID de grupo, buscar la invitación correspondiente
+                    int idGrupoAceptar = (Integer) datosAceptar;
+                    InvitacionGrupoDAO invDAO7 = new InvitacionGrupoDAO();
+                    List<InvitacionGrupo> todasInvitaciones = invDAO7.obtenerInvitacionesPendientes(usuarioConectado.getPk_usuario());
+                    InvitacionGrupo invEncontrada = null;
+                    for (InvitacionGrupo i : todasInvitaciones) {
+                        if (i.getFk_grupo() == idGrupoAceptar) {
+                            invEncontrada = i;
+                            break;
+                        }
+                    }
+                    if (invEncontrada == null) {
+                        enviar(new Peticion("INVITACION_ERROR", "Invitación no encontrada"));
+                        break;
+                    }
+                    pkInvitacion = invEncontrada.getPk_invitacion();
+                }
                 InvitacionGrupoDAO invDAO2 = new InvitacionGrupoDAO();
                 List<InvitacionGrupo> invitacionesPend = invDAO2.obtenerInvitacionesPendientes(usuarioConectado.getPk_usuario());
                 InvitacionGrupo inv = null;
@@ -274,7 +397,7 @@ public class HiloCliente extends Thread {
                     int aceptadas = grupoDAO3.contarInvitacionesAceptadas(inv.getFk_grupo());
                     int pendientes = grupoDAO3.contarInvitacionesPendientes(inv.getFk_grupo());
                     if (miembros + aceptadas + pendientes >= 3) {
-                        enviar(new Peticion("INVITACION_ACEPTADA", "Invitación aceptada. Grupo válido."));
+                        enviar(new Peticion("ACEPTAR_GRUPO_OK", "Invitación aceptada. Grupo válido."));
                         servidor.log(usuarioConectado.getUsername() + " aceptó invitación al grupo ID: " + inv.getFk_grupo());
                     } else {
                         grupoDAO3.eliminarGrupo(inv.getFk_grupo());
@@ -314,21 +437,33 @@ public class HiloCliente extends Thread {
                 }
                 break;
             case "OBTENER_INVITACIONES_GRUPO":
+            case "LISTAR_INVITACIONES_GRUPO":
                 if (usuarioConectado == null) break;
                 InvitacionGrupoDAO invDAO4 = new InvitacionGrupoDAO();
                 List<InvitacionGrupo> invitaciones = invDAO4.obtenerInvitacionesPendientes(usuarioConectado.getPk_usuario());
-                enviar(new Peticion("LISTA_INVITACIONES_GRUPO", invitaciones));
+                // Convertir a formato esperado por el cliente
+                java.util.ArrayList<Grupo> gruposInvitaciones = new java.util.ArrayList<>();
+                GrupoDAO grupoDAO9 = new GrupoDAO();
+                for (InvitacionGrupo invItem : invitaciones) {
+                    Grupo g = grupoDAO9.obtenerGrupo(invItem.getFk_grupo());
+                    if (g != null) {
+                        gruposInvitaciones.add(g);
+                    }
+                }
+                enviar(new Peticion("INVITACIONES_GRUPO_OK", gruposInvitaciones));
                 break;
             case "OBTENER_GRUPOS":
+            case "LISTAR_MIS_GRUPOS":
                 if (usuarioConectado == null) break;
                 GrupoDAO grupoDAO5 = new GrupoDAO();
                 List<Grupo> grupos = grupoDAO5.obtenerGruposUsuario(usuarioConectado.getPk_usuario());
-                enviar(new Peticion("LISTA_GRUPOS", grupos));
+                enviar(new Peticion("LISTA_GRUPOS_OK", grupos));
                 break;
             case "ENVIAR_MENSAJE_GRUPO":
                 if (usuarioConectado == null) break;
                 MensajeGrupo mensajeGrupo = (MensajeGrupo) p.getDatos();
                 mensajeGrupo.setFk_remitente(usuarioConectado.getPk_usuario());
+                mensajeGrupo.setNombreRemitente(usuarioConectado.getUsername());
                 GrupoDAO grupoDAO6 = new GrupoDAO();
                 if (grupoDAO6.esMiembro(mensajeGrupo.getFk_grupo(), usuarioConectado.getPk_usuario())) {
                     MensajeGrupoDAO mgDAO = new MensajeGrupoDAO();
@@ -357,11 +492,13 @@ public class HiloCliente extends Thread {
                 }
                 break;
             case "OBTENER_HISTORIAL_GRUPO":
+            case "PEDIR_HISTORIAL_GRUPO":
                 if (usuarioConectado == null) break;
                 int idGrupoHistorial = (Integer) p.getDatos();
                 MensajeGrupoDAO mgDAO2 = new MensajeGrupoDAO();
                 List<MensajeGrupo> historialGrupo = mgDAO2.obtenerHistorial(idGrupoHistorial);
-                enviar(new Peticion("HISTORIAL_GRUPO", historialGrupo));
+                Object[] paqueteG = {idGrupoHistorial, historialGrupo};
+                enviar(new Peticion("HISTORIAL_GRUPO_OK", paqueteG));
                 break;
             case "SALIR_GRUPO":
                 if (usuarioConectado == null) break;
