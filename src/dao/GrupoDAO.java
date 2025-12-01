@@ -1,5 +1,4 @@
 package dao;
-
 import db.Conexion;
 import models.Grupo;
 import models.Usuario;
@@ -9,9 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-
 public class GrupoDAO {
-    
     public int crearGrupo(Grupo g) {
         String sql = "INSERT INTO grupos (titulo, fk_creador) VALUES (?, ?)";
         try (Connection con = Conexion.getConnection();
@@ -19,11 +16,9 @@ public class GrupoDAO {
             ps.setString(1, g.getTitulo());
             ps.setInt(2, g.getFk_creador());
             ps.executeUpdate();
-            
             ResultSet rs = ps.getGeneratedKeys();
             if (rs.next()) {
                 int pk_grupo = rs.getInt(1);
-                // Agregar al creador como miembro
                 agregarMiembro(pk_grupo, g.getFk_creador());
                 return pk_grupo;
             }
@@ -32,7 +27,6 @@ public class GrupoDAO {
         }
         return -1;
     }
-    
     public boolean agregarMiembro(int fk_grupo, int fk_usuario) {
         String sql = "INSERT INTO miembros_grupo (fk_grupo, fk_usuario) VALUES (?, ?)";
         try (Connection con = Conexion.getConnection();
@@ -46,7 +40,6 @@ public class GrupoDAO {
             return false;
         }
     }
-    
     public boolean eliminarMiembro(int fk_grupo, int fk_usuario) {
         String sql = "DELETE FROM miembros_grupo WHERE fk_grupo = ? AND fk_usuario = ?";
         try (Connection con = Conexion.getConnection();
@@ -59,7 +52,6 @@ public class GrupoDAO {
             return false;
         }
     }
-    
     public boolean eliminarGrupo(int pk_grupo) {
         String sql = "UPDATE grupos SET activo = FALSE WHERE pk_grupo = ?";
         try (Connection con = Conexion.getConnection();
@@ -71,7 +63,6 @@ public class GrupoDAO {
             return false;
         }
     }
-    
     public int contarMiembros(int fk_grupo) {
         String sql = "SELECT COUNT(*) FROM miembros_grupo WHERE fk_grupo = ?";
         try (Connection con = Conexion.getConnection();
@@ -86,7 +77,6 @@ public class GrupoDAO {
         }
         return 0;
     }
-    
     public int contarInvitacionesAceptadas(int fk_grupo) {
         String sql = "SELECT COUNT(*) FROM invitaciones_grupo " +
                      "WHERE fk_grupo = ? AND estado = 'aceptada'";
@@ -102,7 +92,6 @@ public class GrupoDAO {
         }
         return 0;
     }
-    
     public int contarInvitacionesPendientes(int fk_grupo) {
         String sql = "SELECT COUNT(*) FROM invitaciones_grupo " +
                      "WHERE fk_grupo = ? AND estado = 'pendiente'";
@@ -118,7 +107,6 @@ public class GrupoDAO {
         }
         return 0;
     }
-    
     public boolean esCreador(int fk_grupo, int fk_usuario) {
         String sql = "SELECT COUNT(*) FROM grupos WHERE pk_grupo = ? AND fk_creador = ?";
         try (Connection con = Conexion.getConnection();
@@ -134,7 +122,6 @@ public class GrupoDAO {
         }
         return false;
     }
-    
     public boolean esMiembro(int fk_grupo, int fk_usuario) {
         String sql = "SELECT COUNT(*) FROM miembros_grupo WHERE fk_grupo = ? AND fk_usuario = ?";
         try (Connection con = Conexion.getConnection();
@@ -150,7 +137,6 @@ public class GrupoDAO {
         }
         return false;
     }
-    
     public List<Grupo> obtenerGruposUsuario(int usuarioId) {
         List<Grupo> grupos = new ArrayList<>();
         String sql = "SELECT g.*, u.nombre as nombre_creador " +
@@ -177,7 +163,6 @@ public class GrupoDAO {
         }
         return grupos;
     }
-    
     public List<Usuario> obtenerMiembros(int fk_grupo) {
         List<Usuario> miembros = new ArrayList<>();
         String sql = "SELECT u.* FROM usuarios u " +
@@ -200,7 +185,6 @@ public class GrupoDAO {
         }
         return miembros;
     }
-    
     public Grupo obtenerGrupo(int pk_grupo) {
         String sql = "SELECT g.*, u.nombre as nombre_creador FROM grupos g " +
                      "JOIN usuarios u ON g.fk_creador = u.pk_usuario " +
@@ -225,4 +209,3 @@ public class GrupoDAO {
         return null;
     }
 }
-

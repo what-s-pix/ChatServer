@@ -1,5 +1,4 @@
 package dao;
-
 import db.Conexion;
 import models.InvitacionGrupo;
 import java.sql.Connection;
@@ -8,9 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-
 public class InvitacionGrupoDAO {
-    
     public boolean crearInvitacion(InvitacionGrupo inv) {
         String sql = "INSERT INTO invitaciones_grupo (fk_grupo, fk_invitado, fk_invitador, estado) VALUES (?, ?, ?, 'pendiente')";
         try (Connection con = Conexion.getConnection();
@@ -25,7 +22,6 @@ public class InvitacionGrupoDAO {
             return false;
         }
     }
-    
     public boolean aceptarInvitacion(int pk_invitacion) {
         String sql = "UPDATE invitaciones_grupo SET estado = 'aceptada', fecha_respuesta = CURRENT_TIMESTAMP WHERE pk_invitacion = ?";
         try (Connection con = Conexion.getConnection();
@@ -37,7 +33,6 @@ public class InvitacionGrupoDAO {
             return false;
         }
     }
-    
     public boolean rechazarInvitacion(int pk_invitacion) {
         String sql = "UPDATE invitaciones_grupo SET estado = 'rechazada', fecha_respuesta = CURRENT_TIMESTAMP WHERE pk_invitacion = ?";
         try (Connection con = Conexion.getConnection();
@@ -49,7 +44,6 @@ public class InvitacionGrupoDAO {
             return false;
         }
     }
-    
     public List<InvitacionGrupo> obtenerInvitacionesPendientes(int usuarioId) {
         List<InvitacionGrupo> invitaciones = new ArrayList<>();
         String sql = "SELECT i.*, g.titulo as titulo_grupo, u.nombre as nombre_invitador " +
@@ -78,7 +72,6 @@ public class InvitacionGrupoDAO {
         }
         return invitaciones;
     }
-    
     public List<InvitacionGrupo> obtenerInvitacionesGrupo(int fk_grupo) {
         List<InvitacionGrupo> invitaciones = new ArrayList<>();
         String sql = "SELECT i.*, g.titulo as titulo_grupo, u.nombre as nombre_invitador " +
@@ -109,4 +102,3 @@ public class InvitacionGrupoDAO {
         return invitaciones;
     }
 }
-

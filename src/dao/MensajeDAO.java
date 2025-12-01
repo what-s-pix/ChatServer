@@ -1,5 +1,4 @@
 package dao;
-
 import db.Conexion;
 import models.Mensaje;
 import java.sql.Connection;
@@ -8,9 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-
 public class MensajeDAO {
-    
     public boolean guardarMensaje(Mensaje m) {
         String sql = "INSERT INTO mensajes_privados (fk_remitente, fk_destinatario, mensaje) VALUES (?, ?, ?)";
         try (Connection con = Conexion.getConnection();
@@ -25,7 +22,6 @@ public class MensajeDAO {
             return false;
         }
     }
-    
     public List<Mensaje> obtenerHistorial(int usuario1, int usuario2) {
         List<Mensaje> mensajes = new ArrayList<>();
         String sql = "SELECT m.*, u.nombre as nombre_remitente " +
@@ -58,4 +54,3 @@ public class MensajeDAO {
         return mensajes;
     }
 }
-

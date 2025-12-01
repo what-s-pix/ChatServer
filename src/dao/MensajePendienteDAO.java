@@ -1,5 +1,4 @@
 package dao;
-
 import db.Conexion;
 import models.MensajePendiente;
 import java.sql.Connection;
@@ -8,9 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-
 public class MensajePendienteDAO {
-    
     public boolean guardarMensajePendiente(MensajePendiente mp) {
         String sql = "INSERT INTO mensajes_pendientes (fk_usuario, fk_grupo, fk_remitente, tipo, mensaje) VALUES (?, ?, ?, ?, ?)";
         try (Connection con = Conexion.getConnection();
@@ -31,7 +28,6 @@ public class MensajePendienteDAO {
             return false;
         }
     }
-    
     public List<MensajePendiente> obtenerMensajesPendientes(int usuarioId) {
         List<MensajePendiente> mensajes = new ArrayList<>();
         String sql = "SELECT mp.*, u.nombre as nombre_remitente, g.titulo as titulo_grupo " +
@@ -63,7 +59,6 @@ public class MensajePendienteDAO {
         }
         return mensajes;
     }
-    
     public boolean eliminarMensajesPendientes(int usuarioId) {
         String sql = "DELETE FROM mensajes_pendientes WHERE fk_usuario = ?";
         try (Connection con = Conexion.getConnection();
@@ -77,4 +72,3 @@ public class MensajePendienteDAO {
         }
     }
 }
-

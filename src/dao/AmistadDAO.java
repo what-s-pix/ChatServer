@@ -1,5 +1,4 @@
 package dao;
-
 import db.Conexion;
 import models.Amistad;
 import java.sql.Connection;
@@ -8,15 +7,11 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
-
 public class AmistadDAO {
-    
     public boolean enviarSolicitud(Amistad a) {
-        // Verificar que no exista ya una amistad entre estos usuarios
         if (existeAmistad(a.getFk_usuario1(), a.getFk_usuario2())) {
             return false;
         }
-        
         String sql = "INSERT INTO amistades (fk_usuario1, fk_usuario2, estado) VALUES (?, ?, 'pendiente')";
         try (Connection con = Conexion.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
@@ -29,7 +24,6 @@ public class AmistadDAO {
             return false;
         }
     }
-    
     public boolean aceptarSolicitud(int pk_amistad) {
         String sql = "UPDATE amistades SET estado = 'aceptada', fecha_aceptacion = CURRENT_TIMESTAMP WHERE pk_amistad = ?";
         try (Connection con = Conexion.getConnection();
@@ -41,7 +35,6 @@ public class AmistadDAO {
             return false;
         }
     }
-    
     public boolean rechazarSolicitud(int pk_amistad) {
         String sql = "UPDATE amistades SET estado = 'rechazada' WHERE pk_amistad = ?";
         try (Connection con = Conexion.getConnection();
@@ -53,7 +46,6 @@ public class AmistadDAO {
             return false;
         }
     }
-    
     public boolean existeAmistad(int usuario1, int usuario2) {
         String sql = "SELECT COUNT(*) FROM amistades " +
                      "WHERE (fk_usuario1 = ? AND fk_usuario2 = ?) " +
@@ -73,7 +65,6 @@ public class AmistadDAO {
         }
         return false;
     }
-    
     public boolean sonAmigos(int usuario1, int usuario2) {
         String sql = "SELECT COUNT(*) FROM amistades " +
                      "WHERE estado = 'aceptada' " +
@@ -94,7 +85,6 @@ public class AmistadDAO {
         }
         return false;
     }
-    
     public List<Amistad> obtenerAmigos(int usuarioId) {
         List<Amistad> amigos = new ArrayList<>();
         String sql = "SELECT a.*, " +
@@ -126,7 +116,6 @@ public class AmistadDAO {
         }
         return amigos;
     }
-    
     public List<Amistad> obtenerSolicitudesPendientes(int usuarioId) {
         List<Amistad> solicitudes = new ArrayList<>();
         String sql = "SELECT a.*, u.nombre as nombre_usuario " +
@@ -153,4 +142,3 @@ public class AmistadDAO {
         return solicitudes;
     }
 }
-
