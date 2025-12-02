@@ -7,19 +7,28 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 public class UsuarioDAO {
     public boolean registrar(Usuario u) {
-        if (existeUsuario(u.getUsername())) {
+        if (u == null || u.getUsername() == null || u.getUsername().trim().isEmpty()) {
             return false;
         }
-        String sql = "INSERT INTO usuarios (nombre, username, password, ip, estado, intentos_login, bloqueado) VALUES (?, ?, ?, ?, 0, 0, 0)";
+        String username = u.getUsername().trim();
+        try {
+            if (existeUsuario(username)) {
+                return false;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+        String sql = "INSERT INTO usuarios (nombre, username, password, estado, intentos_login, bloqueado) VALUES (?, ?, ?, 0, 0, 0)";
         try (Connection con = Conexion.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, u.getNombre());
-            ps.setString(2, u.getUsername());
-            ps.setString(3, u.getPassword());
-            ps.setString(4, "127.0.0.1");
-            ps.executeUpdate();
-            return true;
+            ps.setString(1, u.getNombre() != null ? u.getNombre().trim() : "");
+            ps.setString(2, username);
+            ps.setString(3, u.getPassword() != null ? u.getPassword() : "");
+            int filas = ps.executeUpdate();
+            return filas > 0;
         } catch (SQLException e) {
+            e.printStackTrace();
             return false;
         }
     }
@@ -113,13 +122,22 @@ public class UsuarioDAO {
         return 0;
     }
     public boolean existeUsuario(String username) {
-        String sql = "SELECT COUNT(*) FROM usuarios WHERE username = ? COLLATE utf8mb4_bin";
+        if (username == null || username.trim().isEmpty()) {
+            return false;
+        }
+        String usernameTrim = username.trim();
+        String sql = "SELECT COUNT(*) FROM usuarios WHERE BINARY username = ?";
         try (Connection con = Conexion.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, username);
+            ps.setString(1, usernameTrim);
             ResultSet rs = ps.executeQuery();
-            if (rs.next()) return rs.getInt(1) > 0;
+            if (rs.next()) {
+                int count = rs.getInt(1);
+                return count > 0;
+            }
         } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
         }
         return false;
     }

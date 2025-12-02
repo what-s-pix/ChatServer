@@ -199,6 +199,16 @@ public class HiloCliente extends Thread {
                 if (amistadDAO3.aceptarSolicitud(pkAmistad)) {
                     enviar(new Peticion("ACEPTAR_SOLICITUD_OK", "Solicitud aceptada"));
                     servidor.log(usuarioConectado.getUsername() + " aceptó una solicitud de amistad");
+                    List<Amistad> solicitudesActualizadas = amistadDAO3.obtenerSolicitudesPendientes(usuarioConectado.getPk_usuario());
+                    java.util.ArrayList<String> solicitudesFormato = new java.util.ArrayList<>();
+                    for (Amistad a : solicitudesActualizadas) {
+                        UsuarioDAO usuarioDAO4 = new UsuarioDAO();
+                        Usuario solicitante = usuarioDAO4.obtenerUsuarioPorId(a.getFk_usuario1());
+                        if (solicitante != null) {
+                            solicitudesFormato.add(solicitante.getUsername() + ":" + a.getPk_amistad());
+                        }
+                    }
+                    enviar(new Peticion("LISTA_SOLICITUDES_OK", solicitudesFormato));
                 } else {
                     enviar(new Peticion("SOLICITUD_ERROR", "Error al aceptar solicitud"));
                 }
@@ -209,6 +219,16 @@ public class HiloCliente extends Thread {
                 AmistadDAO amistadDAO4 = new AmistadDAO();
                 if (amistadDAO4.rechazarSolicitud(pkAmistadRech)) {
                     enviar(new Peticion("SOLICITUD_RECHAZADA", "Solicitud rechazada"));
+                    List<Amistad> solicitudesActualizadas = amistadDAO4.obtenerSolicitudesPendientes(usuarioConectado.getPk_usuario());
+                    java.util.ArrayList<String> solicitudesFormato = new java.util.ArrayList<>();
+                    for (Amistad a : solicitudesActualizadas) {
+                        UsuarioDAO usuarioDAO5 = new UsuarioDAO();
+                        Usuario solicitante = usuarioDAO5.obtenerUsuarioPorId(a.getFk_usuario1());
+                        if (solicitante != null) {
+                            solicitudesFormato.add(solicitante.getUsername() + ":" + a.getPk_amistad());
+                        }
+                    }
+                    enviar(new Peticion("LISTA_SOLICITUDES_OK", solicitudesFormato));
                 } else {
                     enviar(new Peticion("SOLICITUD_ERROR", "Error al rechazar solicitud"));
                 }
@@ -380,21 +400,34 @@ public class HiloCliente extends Thread {
                 int pkGrupo = grupoDAO.crearGrupo(grupo);
                 if (pkGrupo > 0) {
                     grupo.setPk_grupo(pkGrupo);
-                    if (datosGrupo instanceof String) { // Enviar invitaciones si se proporcionaron
+                    InvitacionGrupoDAO invDAO6 = new InvitacionGrupoDAO();
+                    UsuarioDAO usuarioDAO7 = new UsuarioDAO();
+                    if (datosGrupo instanceof Grupo) {
+                        List<Integer> invitadosIds = grupo.getInvitaciones_pendientes();
+                        if (invitadosIds != null && !invitadosIds.isEmpty()) {
+                            for (Integer invitadoId : invitadosIds) {
+                                if (invitadoId != null && invitadoId != usuarioConectado.getPk_usuario()) {
+                                    InvitacionGrupo invitacion = new InvitacionGrupo(pkGrupo, invitadoId, usuarioConectado.getPk_usuario());
+                                    if (invDAO6.crearInvitacion(invitacion)) {
+                                        notificarUsuario(invitadoId, "NUEVA_INVITACION_GRUPO", invitacion);
+                                    }
+                                }
+                            }
+                        }
+                    } else if (datosGrupo instanceof String) {
                         String[] partes = ((String) datosGrupo).split(":", 2);
                         String invitadosStr = partes.length > 1 ? partes[1] : "";
                         if (!invitadosStr.trim().isEmpty()) {
                             String[] usernames = invitadosStr.split(",");
-                            InvitacionGrupoDAO invDAO6 = new InvitacionGrupoDAO();
-                            UsuarioDAO usuarioDAO7 = new UsuarioDAO();
                             for (String username : usernames) {
                                 username = username.trim();
                                 if (!username.isEmpty()) {
                                     Usuario invitado = usuarioDAO7.obtenerUsuarioPorUsername(username);
                                     if (invitado != null && invitado.getPk_usuario() != usuarioConectado.getPk_usuario()) {
                                         InvitacionGrupo invitacion = new InvitacionGrupo(pkGrupo, invitado.getPk_usuario(), usuarioConectado.getPk_usuario());
-                                        invDAO6.crearInvitacion(invitacion);
-                                        notificarUsuario(invitado.getPk_usuario(), "NUEVA_INVITACION_GRUPO", invitacion);
+                                        if (invDAO6.crearInvitacion(invitacion)) {
+                                            notificarUsuario(invitado.getPk_usuario(), "NUEVA_INVITACION_GRUPO", invitacion);
+                                        }
                                     }
                                 }
                             }
@@ -526,6 +559,19 @@ public class HiloCliente extends Thread {
                 GrupoDAO grupoDAO5 = new GrupoDAO();
                 List<Grupo> grupos = grupoDAO5.obtenerGruposUsuario(usuarioConectado.getPk_usuario());
                 enviar(new Peticion("LISTA_GRUPOS_OK", grupos));
+                break;
+            case "OBTENER_MIEMBROS_GRUPO":
+                if (usuarioConectado == null) break;
+                try {
+                    int idGrupoMiembros = (Integer) p.getDatos();
+                    GrupoDAO grupoDAO10 = new GrupoDAO();
+                    List<Usuario> miembros = grupoDAO10.obtenerMiembros(idGrupoMiembros);
+                    Object[] respuesta = {idGrupoMiembros, miembros};
+                    enviar(new Peticion("MIEMBROS_GRUPO_OK", respuesta));
+                    servidor.log("Enviando " + miembros.size() + " miembros del grupo " + idGrupoMiembros + " a " + usuarioConectado.getUsername());
+                } catch (Exception e) {
+                    enviar(new Peticion("PERMISO_ERROR", "Error al obtener miembros: " + e.getMessage()));
+                }
                 break;
             case "ENVIAR_MENSAJE_GRUPO":
                 if (usuarioConectado == null) break;
