@@ -314,6 +314,49 @@ public class HiloCliente extends Thread {
                 enviar(new Peticion("MENSAJE_ENVIADO", "Mensaje enviado correctamente"));
                 servidor.log(usuarioConectado.getUsername() + " envió mensaje a usuario ID: " + mensajeSimple.getFk_destinatario());
                 break;
+            case "MENSAJE_AMIGO":
+            case "MENSAJE_USUARIO":
+                if (usuarioConectado == null) break;
+                Mensaje mensajeAmigoUsuario = (Mensaje) p.getDatos();
+                mensajeAmigoUsuario.setFk_remitente(usuarioConectado.getPk_usuario());
+                mensajeAmigoUsuario.setNombreRemitente(usuarioConectado.getUsername());
+                
+                // Verificar que el destinatario esté especificado
+                if (mensajeAmigoUsuario.getFk_destinatario() == 0) {
+                    enviar(new Peticion("MENSAJE_ERROR", "Destinatario no especificado"));
+                    break;
+                }
+                
+                // SIEMPRE guardar el mensaje en la base de datos
+                MensajeDAO mensajeDAO4 = new MensajeDAO();
+                boolean guardado3 = mensajeDAO4.guardarMensaje(mensajeAmigoUsuario);
+                if (guardado3) {
+                    servidor.log("[MENSAJE_AMIGO/USUARIO] Mensaje guardado en BD correctamente");
+                } else {
+                    servidor.log("[MENSAJE_AMIGO/USUARIO] ERROR: No se pudo guardar el mensaje en BD");
+                }
+                
+                // Intentar entregar en tiempo real
+                boolean entregado3 = notificarUsuario(mensajeAmigoUsuario.getFk_destinatario(), "RECIBIR_MENSAJE", mensajeAmigoUsuario);
+                
+                if (entregado3) {
+                    servidor.log("[MENSAJE_AMIGO/USUARIO] Mensaje entregado en tiempo real a usuario ID: " + mensajeAmigoUsuario.getFk_destinatario());
+                } else {
+                    // Si no se entregó, guardar como pendiente
+                    MensajePendienteDAO mpDAO5 = new MensajePendienteDAO();
+                    MensajePendiente mp3 = new MensajePendiente();
+                    mp3.setFk_usuario(mensajeAmigoUsuario.getFk_destinatario());
+                    mp3.setFk_remitente(mensajeAmigoUsuario.getFk_remitente());
+                    mp3.setTipo("privado");
+                    mp3.setMensaje(mensajeAmigoUsuario.getMensaje());
+                    mpDAO5.guardarMensajePendiente(mp3);
+                    servidor.log("[MENSAJE_AMIGO/USUARIO] Usuario desconectado, mensaje guardado como pendiente");
+                }
+                
+                // Confirmar al remitente
+                enviar(new Peticion("MENSAJE_ENVIADO", "Mensaje enviado correctamente"));
+                servidor.log(usuarioConectado.getUsername() + " envió mensaje a usuario ID: " + mensajeAmigoUsuario.getFk_destinatario());
+                break;
             case "OBTENER_HISTORIAL":
             case "PEDIR_HISTORIAL":
                 if (usuarioConectado == null) break;
