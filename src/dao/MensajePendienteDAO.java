@@ -10,6 +10,8 @@ import java.util.List;
 public class MensajePendienteDAO {
     public boolean guardarMensajePendiente(MensajePendiente mp) {
         String sql = "INSERT INTO mensajes_pendientes (fk_usuario, fk_grupo, fk_remitente, tipo, mensaje) VALUES (?, ?, ?, ?, ?)";
+        System.out.println("[MSG_PENDIENTE_DAO] Guardando mensaje pendiente: usuario=" + mp.getFk_usuario() + 
+                          ", remitente=" + mp.getFk_remitente() + ", tipo=" + mp.getTipo());
         try (Connection con = Conexion.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, mp.getFk_usuario());
@@ -21,9 +23,12 @@ public class MensajePendienteDAO {
             ps.setInt(3, mp.getFk_remitente());
             ps.setString(4, mp.getTipo());
             ps.setString(5, mp.getMensaje());
-            ps.executeUpdate();
-            return true;
+            int filas = ps.executeUpdate();
+            System.out.println("[MSG_PENDIENTE_DAO] Mensaje pendiente guardado. Filas afectadas: " + filas);
+            return filas > 0;
         } catch (SQLException e) {
+            System.err.println("[MSG_PENDIENTE_DAO] ERROR guardando mensaje pendiente: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }

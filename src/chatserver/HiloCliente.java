@@ -217,47 +217,59 @@ public class HiloCliente extends Thread {
             case "LISTAR_SOLICITUDES":
                 if (usuarioConectado == null) break;
                 AmistadDAO amistadDAO5 = new AmistadDAO();
+                // Obtener solicitudes donde YO soy el destinatario (fk_usuario2)
                 List<Amistad> solicitudes = amistadDAO5.obtenerSolicitudesPendientes(usuarioConectado.getPk_usuario());
-                java.util.ArrayList<String> solicitudesFormato = new java.util.ArrayList<>(); // Convertir a formato esperado por el cliente
+                java.util.ArrayList<String> solicitudesFormato = new java.util.ArrayList<>();
                 for (Amistad a : solicitudes) {
+                    // El solicitante es fk_usuario1 (quien envió la solicitud)
                     UsuarioDAO usuarioDAO4 = new UsuarioDAO();
-                    Usuario solicitante = usuarioDAO4.obtenerUsuarioPorId(a.getFk_usuario1() == usuarioConectado.getPk_usuario() ? a.getFk_usuario2() : a.getFk_usuario1());
+                    Usuario solicitante = usuarioDAO4.obtenerUsuarioPorId(a.getFk_usuario1());
                     if (solicitante != null) {
+                        // Formato: "username:pk_amistad"
                         solicitudesFormato.add(solicitante.getUsername() + ":" + a.getPk_amistad());
+                        System.out.println("[SOLICITUDES] Solicitud de " + solicitante.getUsername() + " (ID: " + a.getPk_amistad() + ")");
                     }
                 }
+                System.out.println("[SOLICITUDES] Enviando " + solicitudesFormato.size() + " solicitudes pendientes");
                 enviar(new Peticion("LISTA_SOLICITUDES_OK", solicitudesFormato));
                 break;
             case "ENVIAR_MENSAJE_PRIVADO":
                 if (usuarioConectado == null) break;
                 Mensaje mensaje = (Mensaje) p.getDatos();
                 mensaje.setFk_remitente(usuarioConectado.getPk_usuario());
-                AmistadDAO amistadDAO6 = new AmistadDAO();
-                if (amistadDAO6.sonAmigos(usuarioConectado.getPk_usuario(), mensaje.getFk_destinatario())) {
-                    MensajeDAO mensajeDAO = new MensajeDAO();
-                    mensajeDAO.guardarMensaje(mensaje);
-                    mensaje.setNombreRemitente(usuarioConectado.getUsername());
-                    boolean enviado = notificarUsuario(mensaje.getFk_destinatario(), "RECIBIR_MENSAJE", mensaje);
-                    if (!enviado) {
-                        MensajePendienteDAO mpDAO2 = new MensajePendienteDAO();
-                        MensajePendiente mp = new MensajePendiente();
-                        mp.setFk_usuario(mensaje.getFk_destinatario());
-                        mp.setFk_remitente(mensaje.getFk_remitente());
-                        mp.setTipo("privado");
-                        mp.setMensaje(mensaje.getMensaje());
-                        mpDAO2.guardarMensajePendiente(mp);
-                    }
-                    enviar(new Peticion("MENSAJE_ENVIADO", "Mensaje enviado"));
-                    servidor.log(usuarioConectado.getUsername() + " envió mensaje a usuario ID: " + mensaje.getFk_destinatario());
+                mensaje.setNombreRemitente(usuarioConectado.getUsername());
+                
+                // SIEMPRE guardar el mensaje en la base de datos
+                MensajeDAO mensajeDAO = new MensajeDAO();
+                boolean guardadoPrivado = mensajeDAO.guardarMensaje(mensaje);
+                if (guardadoPrivado) {
+                    servidor.log("[MENSAJE_PRIVADO] Mensaje guardado en BD");
                 } else {
-                    enviar(new Peticion("MENSAJE_ERROR", "Solo puedes enviar mensajes a tus amigos"));
+                    servidor.log("[MENSAJE_PRIVADO] ERROR guardando mensaje en BD");
                 }
+                
+                // Intentar entregar en tiempo real
+                boolean enviado = notificarUsuario(mensaje.getFk_destinatario(), "RECIBIR_MENSAJE", mensaje);
+                if (!enviado) {
+                    MensajePendienteDAO mpDAO2 = new MensajePendienteDAO();
+                    MensajePendiente mp = new MensajePendiente();
+                    mp.setFk_usuario(mensaje.getFk_destinatario());
+                    mp.setFk_remitente(mensaje.getFk_remitente());
+                    mp.setTipo("privado");
+                    mp.setMensaje(mensaje.getMensaje());
+                    mpDAO2.guardarMensajePendiente(mp);
+                    servidor.log("[MENSAJE_PRIVADO] Usuario desconectado, mensaje guardado como pendiente");
+                }
+                enviar(new Peticion("MENSAJE_ENVIADO", "Mensaje enviado"));
+                servidor.log(usuarioConectado.getUsername() + " envió mensaje a usuario ID: " + mensaje.getFk_destinatario());
                 break;
             case "ENVIAR_MENSAJE":
                 if (usuarioConectado == null) break;
                 Mensaje mensajeSimple = (Mensaje) p.getDatos();
                 mensajeSimple.setFk_remitente(usuarioConectado.getPk_usuario());
                 mensajeSimple.setNombreRemitente(usuarioConectado.getUsername());
+                
+                // Resolver destinatario si viene por username
                 if (mensajeSimple.getFk_destinatario() == 0 && mensajeSimple.getNombreDestinatario() != null) {
                     UsuarioDAO usuarioDAO2 = new UsuarioDAO();
                     Usuario destinatario = usuarioDAO2.obtenerUsuarioPorUsername(mensajeSimple.getNombreDestinatario());
@@ -271,17 +283,23 @@ public class HiloCliente extends Thread {
                     enviar(new Peticion("MENSAJE_ERROR", "Destinatario no especificado"));
                     break;
                 }
-                AmistadDAO amistadDAO7 = new AmistadDAO();
-                boolean sonAmigos2 = amistadDAO7.sonAmigos(usuarioConectado.getPk_usuario(), mensajeSimple.getFk_destinatario());
-                if (sonAmigos2) {
-                    MensajeDAO mensajeDAO3 = new MensajeDAO();
-                    mensajeDAO3.guardarMensaje(mensajeSimple);
-                    servidor.log(" -> Son amigos. Mensaje guardado en historial.");
+                
+                // SIEMPRE guardar el mensaje en la base de datos
+                MensajeDAO mensajeDAO3 = new MensajeDAO();
+                boolean guardado = mensajeDAO3.guardarMensaje(mensajeSimple);
+                if (guardado) {
+                    servidor.log("[MENSAJE] Mensaje guardado en BD correctamente");
                 } else {
-                    servidor.log(" -> NO son amigos. Mensaje efímero (no guardado).");
+                    servidor.log("[MENSAJE] ERROR: No se pudo guardar el mensaje en BD");
                 }
+                
+                // Intentar entregar en tiempo real
                 boolean entregado2 = notificarUsuario(mensajeSimple.getFk_destinatario(), "RECIBIR_MENSAJE", mensajeSimple);
-                if (!entregado2 && sonAmigos2) {
+                
+                if (entregado2) {
+                    servidor.log("[MENSAJE] Mensaje entregado en tiempo real a usuario ID: " + mensajeSimple.getFk_destinatario());
+                } else {
+                    // Si no se entregó, guardar como pendiente
                     MensajePendienteDAO mpDAO4 = new MensajePendienteDAO();
                     MensajePendiente mp2 = new MensajePendiente();
                     mp2.setFk_usuario(mensajeSimple.getFk_destinatario());
@@ -289,25 +307,43 @@ public class HiloCliente extends Thread {
                     mp2.setTipo("privado");
                     mp2.setMensaje(mensajeSimple.getMensaje());
                     mpDAO4.guardarMensajePendiente(mp2);
+                    servidor.log("[MENSAJE] Usuario desconectado, mensaje guardado como pendiente");
                 }
-                servidor.log(usuarioConectado.getUsername() + " envió mensaje para usuario ID: " + mensajeSimple.getFk_destinatario());
+                
+                // Confirmar al remitente
+                enviar(new Peticion("MENSAJE_ENVIADO", "Mensaje enviado correctamente"));
+                servidor.log(usuarioConectado.getUsername() + " envió mensaje a usuario ID: " + mensajeSimple.getFk_destinatario());
                 break;
             case "OBTENER_HISTORIAL":
             case "PEDIR_HISTORIAL":
                 if (usuarioConectado == null) break;
                 Object datosHistorial = p.getDatos();
                 int idOtroUsuario;
+                String usernameOtro = null;
+                
                 if (datosHistorial instanceof Integer) {
                     idOtroUsuario = (Integer) datosHistorial;
-                } else {
-                    UsuarioDAO usuarioDAO3 = new UsuarioDAO(); // Si es un String (username), obtener el ID
-                    Usuario otroUsuario = usuarioDAO3.obtenerUsuarioPorUsername((String) datosHistorial);
-                    if (otroUsuario == null) break;
+                    // Obtener username para el paquete de respuesta
+                    UsuarioDAO usuarioDAO3b = new UsuarioDAO();
+                    Usuario otroUsuarioObj = usuarioDAO3b.obtenerUsuarioPorId(idOtroUsuario);
+                    usernameOtro = otroUsuarioObj != null ? otroUsuarioObj.getUsername() : null;
+                } else if (datosHistorial instanceof String) {
+                    usernameOtro = (String) datosHistorial;
+                    UsuarioDAO usuarioDAO3 = new UsuarioDAO();
+                    Usuario otroUsuario = usuarioDAO3.obtenerUsuarioPorUsername(usernameOtro);
+                    if (otroUsuario == null) {
+                        enviar(new Peticion("HISTORIAL_OK", new Object[]{usernameOtro, new java.util.ArrayList<>()}));
+                        break;
+                    }
                     idOtroUsuario = otroUsuario.getPk_usuario();
+                } else {
+                    break;
                 }
+                
                 MensajeDAO mensajeDAO2 = new MensajeDAO();
                 List<Mensaje> historial = mensajeDAO2.obtenerHistorial(usuarioConectado.getPk_usuario(), idOtroUsuario);
-                Object[] paquete = {(String) (datosHistorial instanceof String ? datosHistorial : null), historial};
+                servidor.log("[HISTORIAL] Enviando " + historial.size() + " mensajes a " + usuarioConectado.getUsername());
+                Object[] paquete = {idOtroUsuario, historial};  // Usar ID para que el cliente pueda identificar la ventana
                 enviar(new Peticion("HISTORIAL_OK", paquete));
                 break;
             case "CREAR_GRUPO":
@@ -615,21 +651,25 @@ public class HiloCliente extends Thread {
             }
         }).start();
     }
+    // Objeto para sincronizar escrituras al stream
+    private final Object lockSalida = new Object();
+    
     public void enviar(Peticion p) {
-        try {
-            System.out.println("[HILO_CLIENTE] enviar() llamado con petición: " + p.getAccion());
-            System.out.println("[HILO_CLIENTE] salida es null? " + (salida == null));
-            if (salida == null) {
-                System.err.println("[HILO_CLIENTE] ERROR: salida es null!");
-                return;
+        synchronized (lockSalida) {
+            try {
+                System.out.println("[HILO_CLIENTE] enviar() llamado con petición: " + p.getAccion());
+                if (salida == null) {
+                    System.err.println("[HILO_CLIENTE] ERROR: salida es null!");
+                    return;
+                }
+                salida.writeObject(p);
+                salida.flush();
+                salida.reset(); // Importante: resetear para evitar referencias cacheadas
+                System.out.println("[HILO_CLIENTE] Petición " + p.getAccion() + " enviada exitosamente!");
+            } catch (IOException e) {
+                System.err.println("[HILO_CLIENTE] ERROR al enviar: " + e.getMessage());
+                servidor.log("Error enviando mensaje: " + e.getMessage());
             }
-            salida.writeObject(p);
-            salida.flush();
-            System.out.println("[HILO_CLIENTE] Petición " + p.getAccion() + " enviada exitosamente!");
-        } catch (IOException e) {
-            System.err.println("[HILO_CLIENTE] ERROR al enviar: " + e.getMessage());
-            e.printStackTrace();
-            servidor.log("Error enviando mensaje: " + e.getMessage());
         }
     }
     private void cerrarConexion() {

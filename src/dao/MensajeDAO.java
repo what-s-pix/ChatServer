@@ -10,14 +10,19 @@ import java.util.List;
 public class MensajeDAO {
     public boolean guardarMensaje(Mensaje m) {
         String sql = "INSERT INTO mensajes_privados (fk_remitente, fk_destinatario, mensaje) VALUES (?, ?, ?)";
+        System.out.println("[MENSAJE_DAO] Guardando mensaje: remitente=" + m.getFk_remitente() + 
+                          ", destinatario=" + m.getFk_destinatario() + ", mensaje=" + m.getMensaje());
         try (Connection con = Conexion.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, m.getFk_remitente());
             ps.setInt(2, m.getFk_destinatario());
             ps.setString(3, m.getMensaje());
-            ps.executeUpdate();
-            return true;
+            int filas = ps.executeUpdate();
+            System.out.println("[MENSAJE_DAO] Mensaje guardado exitosamente. Filas afectadas: " + filas);
+            return filas > 0;
         } catch (SQLException e) {
+            System.err.println("[MENSAJE_DAO] ERROR guardando mensaje: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
