@@ -27,7 +27,12 @@ public class HiloCliente extends Thread {
         try {
             System.out.println("[HILO_CLIENTE] Iniciando hilo para cliente: " + socket.getInetAddress());
             salida = new ObjectOutputStream(socket.getOutputStream());
-            System.out.println("[HILO_CLIENTE] ObjectOutputStream creado");
+            salida.flush(); // Asegurar que el header se envíe inmediatamente
+            System.out.println("[HILO_CLIENTE] ObjectOutputStream creado y flushed");
+            // Pequeña pausa para que el cliente pueda crear su ObjectInputStream
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {}
             entrada = new ObjectInputStream(socket.getInputStream());
             System.out.println("[HILO_CLIENTE] ObjectInputStream creado, esperando peticiones...");
             while (conectado) {
@@ -42,6 +47,8 @@ public class HiloCliente extends Thread {
                 servidor.log("Cliente desconectado: " + usuarioConectado.getUsername());
                 UsuarioDAO dao = new UsuarioDAO();
                 dao.actualizarEstado(usuarioConectado.getUsername(), 0);
+                // Notificar a todos los clientes que un usuario se desconectó
+                notificarTodosUsuarios("USUARIO_DESCONECTO", usuarioConectado);
             } else {
                 servidor.log("Cliente desconectado: " + socket.getInetAddress());
             }
@@ -75,6 +82,17 @@ public class HiloCliente extends Thread {
                     System.out.println("[HILO_CLIENTE] Enviando respuesta LOGIN_OK...");
                     enviar(new Peticion("LOGIN_OK", logueado));
                     System.out.println("[HILO_CLIENTE] Respuesta LOGIN_OK enviada!");
+                    
+                    // Notificar a todos los clientes que un usuario se conectó (en un hilo separado para no bloquear)
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(100); // Esperar un poco para que el cliente termine de procesar el LOGIN_OK
+                            notificarTodosUsuarios("ACTUALIZAR_ESTADO_USUARIO", 
+                                new Usuario(logueado.getPk_usuario(), logueado.getNombre(), logueado.getUsername(), 1, logueado.isBloqueado()));
+                        } catch (Exception e) {
+                            System.err.println("[HILO_CLIENTE] Error notificando usuarios: " + e.getMessage());
+                        }
+                    }).start();
                 } else {
                     System.out.println("[HILO_CLIENTE] Login fallido, obteniendo intentos...");
                     int intentos = usuarioDAO.obtenerIntentos(uLogin.getUsername());
@@ -128,6 +146,14 @@ public class HiloCliente extends Thread {
                 List<Usuario> todosUsuarios = usuarioDAO.obtenerTodosUsuarios();
                 enviar(new Peticion("LISTA_USUARIOS", todosUsuarios));
                 servidor.log("Lista de usuarios enviada a: " + usuarioConectado.getUsername());
+                break;
+            case "OBTENER_USUARIOS_CONECTADOS":
+                if (usuarioConectado == null) break;
+                System.out.println("[HILO_CLIENTE] Obteniendo usuarios conectados...");
+                List<Usuario> usuariosConectados = usuarioDAO.obtenerUsuariosConectados();
+                System.out.println("[HILO_CLIENTE] Usuarios conectados encontrados: " + usuariosConectados.size());
+                enviar(new Peticion("USUARIOS_CONECTADOS", usuariosConectados));
+                servidor.log("Lista de usuarios conectados enviada a: " + usuarioConectado.getUsername());
                 break;
             case "OBTENER_AMIGOS":
             case "LISTAR_AMIGOS":
@@ -547,6 +573,47 @@ public class HiloCliente extends Thread {
             }
         }
         return false;
+    }
+    
+    private void notificarTodosUsuarios(String accion, Object datos) {
+        // Ejecutar en un hilo separado para no bloquear el hilo principal
+        new Thread(() -> {
+            try {
+                // Enviar a todos los clientes conectados (excepto al que originó el evento)
+                for (HiloCliente cliente : Servidor.clientesConectados) {
+                    if (cliente.getUsuarioConectado() != null && 
+                        cliente != this) { // No notificar al mismo cliente
+                        try {
+                            cliente.enviar(new Peticion(accion, datos));
+                            // Pausa más larga para evitar saturar el stream
+                            Thread.sleep(50);
+                        } catch (Exception e) {
+                            System.err.println("[HILO_CLIENTE] Error notificando a cliente: " + e.getMessage());
+                        }
+                    }
+                }
+                // También enviar la lista actualizada de usuarios a todos (con un retraso más largo)
+                try {
+                    Thread.sleep(200); // Pausa más larga antes de enviar la lista actualizada
+                } catch (InterruptedException e) {}
+                
+                UsuarioDAO usuarioDAO = new UsuarioDAO();
+                List<Usuario> todosUsuarios = usuarioDAO.obtenerTodosUsuarios();
+                for (HiloCliente cliente : Servidor.clientesConectados) {
+                    if (cliente.getUsuarioConectado() != null) {
+                        try {
+                            cliente.enviar(new Peticion("LISTA_USUARIOS", todosUsuarios));
+                            // Pausa más larga entre envíos
+                            Thread.sleep(50);
+                        } catch (Exception e) {
+                            System.err.println("[HILO_CLIENTE] Error enviando lista actualizada: " + e.getMessage());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[HILO_CLIENTE] Error en notificarTodosUsuarios: " + e.getMessage());
+            }
+        }).start();
     }
     public void enviar(Peticion p) {
         try {
