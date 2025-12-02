@@ -40,19 +40,27 @@ public class Servidor extends JFrame {
     }
     private void iniciarRed() {
         int puerto = 5000;
+        System.out.println("[SERVIDOR] Iniciando servidor en puerto " + puerto);
         SwingUtilities.invokeLater(() -> {
             lblEstado.setText("puerto:" + puerto);
         });
         try (ServerSocket serverSocket = new ServerSocket(puerto)) {
+            System.out.println("[SERVIDOR] Servidor escuchando en puerto " + puerto);
+            log("Servidor iniciado y escuchando en puerto " + puerto);
             while (true) {
+                System.out.println("[SERVIDOR] Esperando conexiones...");
                 Socket socketCliente = serverSocket.accept();
+                System.out.println("[SERVIDOR] Nueva conexión recibida de: " + socketCliente.getInetAddress().getHostAddress());
                 log("[" + sdf.format(new Date()) + "] Nueva conexión: " + socketCliente.getInetAddress().getHostAddress());
                 HiloCliente hilo = new HiloCliente(socketCliente, this);
                 clientesConectados.add(hilo);
                 actualizarContadorClientes();
                 hilo.start();
+                System.out.println("[SERVIDOR] Hilo de cliente iniciado. Total clientes: " + clientesConectados.size());
             }
         } catch (IOException e) {
+            System.err.println("[SERVIDOR] ERROR CRÍTICO: " + e.getMessage());
+            e.printStackTrace();
             log("ERROR CRÍTICO: " + e.getMessage());
             SwingUtilities.invokeLater(() -> {
                 lblEstado.setText("Estado: ERROR - " + e.getMessage());

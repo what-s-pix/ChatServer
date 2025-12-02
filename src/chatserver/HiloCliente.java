@@ -25,13 +25,19 @@ public class HiloCliente extends Thread {
     @Override
     public void run() {
         try {
+            System.out.println("[HILO_CLIENTE] Iniciando hilo para cliente: " + socket.getInetAddress());
             salida = new ObjectOutputStream(socket.getOutputStream());
+            System.out.println("[HILO_CLIENTE] ObjectOutputStream creado");
             entrada = new ObjectInputStream(socket.getInputStream());
+            System.out.println("[HILO_CLIENTE] ObjectInputStream creado, esperando peticiones...");
             while (conectado) {
                 Peticion peticion = (Peticion) entrada.readObject();
+                System.out.println("[HILO_CLIENTE] Petición recibida: " + peticion.getAccion());
                 procesarPeticion(peticion);
             }
         } catch (Exception e) {
+            System.err.println("[HILO_CLIENTE] Error: " + e.getClass().getSimpleName() + " - " + e.getMessage());
+            e.printStackTrace();
             if (usuarioConectado != null) {
                 servidor.log("Cliente desconectado: " + usuarioConectado.getUsername());
                 UsuarioDAO dao = new UsuarioDAO();
@@ -44,29 +50,41 @@ public class HiloCliente extends Thread {
         }
     }
     private void procesarPeticion(Peticion p) {
+        System.out.println("[HILO_CLIENTE] procesarPeticion() llamado con acción: " + p.getAccion());
         UsuarioDAO usuarioDAO = new UsuarioDAO();
         switch (p.getAccion()) {
             case "LOGIN":
+                System.out.println("[HILO_CLIENTE] Procesando LOGIN...");
                 Usuario uLogin = (Usuario) p.getDatos();
+                System.out.println("[HILO_CLIENTE] Usuario recibido: " + (uLogin != null ? uLogin.getUsername() : "null"));
                 servidor.log("Intento de login: " + uLogin.getUsername());
+                System.out.println("[HILO_CLIENTE] Llamando a usuarioDAO.login()...");
                 Usuario logueado = usuarioDAO.login(uLogin.getUsername(), uLogin.getPassword());
+                System.out.println("[HILO_CLIENTE] Resultado del login: " + (logueado != null ? "EXITOSO" : "FALLIDO"));
                 if (logueado != null) {
                     this.usuarioConectado = logueado;
                     servidor.log("Usuario LOGUEADO: " + logueado.getUsername());
+                    System.out.println("[HILO_CLIENTE] Usuario logueado: " + logueado.getUsername());
                     MensajePendienteDAO mpDAO = new MensajePendienteDAO();
                     List<MensajePendiente> pendientes = mpDAO.obtenerMensajesPendientes(logueado.getPk_usuario());
                     if (!pendientes.isEmpty()) {
+                        System.out.println("[HILO_CLIENTE] Enviando mensajes pendientes...");
                         enviar(new Peticion("MENSAJES_PENDIENTES", pendientes));
                         mpDAO.eliminarMensajesPendientes(logueado.getPk_usuario());
                     }
+                    System.out.println("[HILO_CLIENTE] Enviando respuesta LOGIN_OK...");
                     enviar(new Peticion("LOGIN_OK", logueado));
+                    System.out.println("[HILO_CLIENTE] Respuesta LOGIN_OK enviada!");
                 } else {
+                    System.out.println("[HILO_CLIENTE] Login fallido, obteniendo intentos...");
                     int intentos = usuarioDAO.obtenerIntentos(uLogin.getUsername());
                     boolean bloqueado = usuarioDAO.estaBloqueado(uLogin.getUsername());
                     if (bloqueado) {
+                        System.out.println("[HILO_CLIENTE] Usuario bloqueado, enviando LOGIN_BLOQUEADO...");
                         enviar(new Peticion("LOGIN_BLOQUEADO", "Tu cuenta ha sido bloqueada. Debes recuperar tu contraseña."));
                         servidor.log("Usuario BLOQUEADO: " + uLogin.getUsername() + " (Intentos: " + intentos + ")");
                     } else {
+                        System.out.println("[HILO_CLIENTE] Credenciales incorrectas, enviando LOGIN_ERROR...");
                         enviar(new Peticion("LOGIN_ERROR", "Credenciales incorrectas. Intentos: " + intentos + "/3"));
                         servidor.log("Fallo de credenciales: " + uLogin.getUsername() + " (Intentos: " + intentos + "/3)");
                     }
@@ -532,9 +550,18 @@ public class HiloCliente extends Thread {
     }
     public void enviar(Peticion p) {
         try {
+            System.out.println("[HILO_CLIENTE] enviar() llamado con petición: " + p.getAccion());
+            System.out.println("[HILO_CLIENTE] salida es null? " + (salida == null));
+            if (salida == null) {
+                System.err.println("[HILO_CLIENTE] ERROR: salida es null!");
+                return;
+            }
             salida.writeObject(p);
             salida.flush();
+            System.out.println("[HILO_CLIENTE] Petición " + p.getAccion() + " enviada exitosamente!");
         } catch (IOException e) {
+            System.err.println("[HILO_CLIENTE] ERROR al enviar: " + e.getMessage());
+            e.printStackTrace();
             servidor.log("Error enviando mensaje: " + e.getMessage());
         }
     }
