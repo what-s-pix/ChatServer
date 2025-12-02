@@ -24,7 +24,6 @@ public class MensajePendienteDAO {
             ps.executeUpdate();
             return true;
         } catch (SQLException e) {
-            System.err.println("Error al guardar mensaje pendiente: " + e.getMessage());
             return false;
         }
     }
@@ -55,7 +54,6 @@ public class MensajePendienteDAO {
                 mensajes.add(mp);
             }
         } catch (SQLException e) {
-            System.err.println("Error al obtener mensajes pendientes: " + e.getMessage());
         }
         return mensajes;
     }
@@ -67,7 +65,6 @@ public class MensajePendienteDAO {
             ps.executeUpdate();
             return true;
         } catch (SQLException e) {
-            System.err.println("Error al eliminar mensajes pendientes: " + e.getMessage());
             return false;
         }
     }

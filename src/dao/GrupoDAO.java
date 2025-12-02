@@ -23,7 +23,6 @@ public class GrupoDAO {
                 return pk_grupo;
             }
         } catch (SQLException e) {
-            System.err.println("Error al crear grupo: " + e.getMessage());
         }
         return -1;
     }
@@ -36,7 +35,6 @@ public class GrupoDAO {
             ps.executeUpdate();
             return true;
         } catch (SQLException e) {
-            System.err.println("Error al agregar miembro: " + e.getMessage());
             return false;
         }
     }
@@ -48,7 +46,6 @@ public class GrupoDAO {
             ps.setInt(2, fk_usuario);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Error al eliminar miembro: " + e.getMessage());
             return false;
         }
     }
@@ -59,7 +56,6 @@ public class GrupoDAO {
             ps.setInt(1, pk_grupo);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Error al eliminar grupo: " + e.getMessage());
             return false;
         }
     }
@@ -73,7 +69,6 @@ public class GrupoDAO {
                 return rs.getInt(1);
             }
         } catch (SQLException e) {
-            System.err.println("Error al contar miembros: " + e.getMessage());
         }
         return 0;
     }
@@ -88,7 +83,6 @@ public class GrupoDAO {
                 return rs.getInt(1);
             }
         } catch (SQLException e) {
-            System.err.println("Error al contar invitaciones: " + e.getMessage());
         }
         return 0;
     }
@@ -103,7 +97,6 @@ public class GrupoDAO {
                 return rs.getInt(1);
             }
         } catch (SQLException e) {
-            System.err.println("Error al contar invitaciones pendientes: " + e.getMessage());
         }
         return 0;
     }
@@ -118,7 +111,6 @@ public class GrupoDAO {
                 return rs.getInt(1) > 0;
             }
         } catch (SQLException e) {
-            System.err.println("Error al verificar creador: " + e.getMessage());
         }
         return false;
     }
@@ -133,7 +125,6 @@ public class GrupoDAO {
                 return rs.getInt(1) > 0;
             }
         } catch (SQLException e) {
-            System.err.println("Error al verificar miembro: " + e.getMessage());
         }
         return false;
     }
@@ -159,7 +150,6 @@ public class GrupoDAO {
                 grupos.add(g);
             }
         } catch (SQLException e) {
-            System.err.println("Error al obtener grupos: " + e.getMessage());
         }
         return grupos;
     }
@@ -181,7 +171,6 @@ public class GrupoDAO {
                 miembros.add(u);
             }
         } catch (SQLException e) {
-            System.err.println("Error al obtener miembros: " + e.getMessage());
         }
         return miembros;
     }
@@ -204,7 +193,6 @@ public class GrupoDAO {
                 return g;
             }
         } catch (SQLException e) {
-            System.err.println("Error al obtener grupo: " + e.getMessage());
         }
         return null;
     }

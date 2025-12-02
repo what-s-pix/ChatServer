@@ -18,7 +18,6 @@ public class InvitacionGrupoDAO {
             ps.executeUpdate();
             return true;
         } catch (SQLException e) {
-            System.err.println("Error al crear invitación: " + e.getMessage());
             return false;
         }
     }
@@ -29,7 +28,6 @@ public class InvitacionGrupoDAO {
             ps.setInt(1, pk_invitacion);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Error al aceptar invitación: " + e.getMessage());
             return false;
         }
     }
@@ -40,7 +38,6 @@ public class InvitacionGrupoDAO {
             ps.setInt(1, pk_invitacion);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Error al rechazar invitación: " + e.getMessage());
             return false;
         }
     }
@@ -68,7 +65,6 @@ public class InvitacionGrupoDAO {
                 invitaciones.add(inv);
             }
         } catch (SQLException e) {
-            System.err.println("Error al obtener invitaciones: " + e.getMessage());
         }
         return invitaciones;
     }
@@ -97,7 +93,6 @@ public class InvitacionGrupoDAO {
                 invitaciones.add(inv);
             }
         } catch (SQLException e) {
-            System.err.println("Error al obtener invitaciones del grupo: " + e.getMessage());
         }
         return invitaciones;
     }

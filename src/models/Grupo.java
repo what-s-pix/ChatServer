@@ -35,4 +35,5 @@ public class Grupo implements Serializable {
     public void setNombreCreador(String nombreCreador) { this.nombreCreador = nombreCreador; }
     public List<Usuario> getMiembros() { return miembros; }
     public void setMiembros(List<Usuario> miembros) { this.miembros = miembros; }
+    public int getId() { return pk_grupo; }
 }

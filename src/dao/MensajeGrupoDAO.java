@@ -18,7 +18,6 @@ public class MensajeGrupoDAO {
             ps.executeUpdate();
             return true;
         } catch (SQLException e) {
-            System.err.println("Error al guardar mensaje de grupo: " + e.getMessage());
             return false;
         }
     }
@@ -46,7 +45,6 @@ public class MensajeGrupoDAO {
                 mensajes.add(m);
             }
         } catch (SQLException e) {
-            System.err.println("Error al obtener historial de grupo: " + e.getMessage());
         }
         return mensajes;
     }

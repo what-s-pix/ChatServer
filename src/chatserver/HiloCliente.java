@@ -61,18 +61,14 @@ public class HiloCliente extends Thread {
                     }
                     enviar(new Peticion("LOGIN_OK", logueado));
                 } else {
-                    // Obtener intentos DESPUÉS de que login() los haya incrementado
                     int intentos = usuarioDAO.obtenerIntentos(uLogin.getUsername());
                     boolean bloqueado = usuarioDAO.estaBloqueado(uLogin.getUsername());
                     if (bloqueado) {
                         enviar(new Peticion("LOGIN_BLOQUEADO", "Tu cuenta ha sido bloqueada. Debes recuperar tu contraseña."));
                         servidor.log("Usuario BLOQUEADO: " + uLogin.getUsername() + " (Intentos: " + intentos + ")");
-                    } else if (intentos >= 3) {
-                        enviar(new Peticion("LOGIN_BLOQUEADO", "Has alcanzado el límite de intentos. Debes recuperar tu contraseña."));
-                        servidor.log("Usuario BLOQUEADO por límite de intentos: " + uLogin.getUsername() + " (Intentos: " + intentos + ")");
                     } else {
                         enviar(new Peticion("LOGIN_ERROR", "Credenciales incorrectas. Intentos: " + intentos + "/3"));
-                        servidor.log("Fallo de credenciales: " + uLogin.getUsername() + " (Intentos: " + intentos + ")");
+                        servidor.log("Fallo de credenciales: " + uLogin.getUsername() + " (Intentos: " + intentos + "/3)");
                     }
                 }
                 break;
@@ -130,8 +126,7 @@ public class HiloCliente extends Thread {
                 if (datosSolicitud instanceof Integer) {
                     idDestinatario = (Integer) datosSolicitud;
                 } else if (datosSolicitud instanceof String) {
-                    // Si es un username, obtener el ID
-                    UsuarioDAO usuarioDAO5 = new UsuarioDAO();
+                    UsuarioDAO usuarioDAO5 = new UsuarioDAO(); // Si es un username, obtener el ID
                     Usuario destinatario = usuarioDAO5.obtenerUsuarioPorUsername((String) datosSolicitud);
                     if (destinatario == null) {
                         enviar(new Peticion("SOLICITUD_ERROR", "Usuario no encontrado"));
@@ -179,8 +174,7 @@ public class HiloCliente extends Thread {
                 if (usuarioConectado == null) break;
                 AmistadDAO amistadDAO5 = new AmistadDAO();
                 List<Amistad> solicitudes = amistadDAO5.obtenerSolicitudesPendientes(usuarioConectado.getPk_usuario());
-                // Convertir a formato esperado por el cliente
-                java.util.ArrayList<String> solicitudesFormato = new java.util.ArrayList<>();
+                java.util.ArrayList<String> solicitudesFormato = new java.util.ArrayList<>(); // Convertir a formato esperado por el cliente
                 for (Amistad a : solicitudes) {
                     UsuarioDAO usuarioDAO4 = new UsuarioDAO();
                     Usuario solicitante = usuarioDAO4.obtenerUsuarioPorId(a.getFk_usuario1() == usuarioConectado.getPk_usuario() ? a.getFk_usuario2() : a.getFk_usuario1());
@@ -262,8 +256,7 @@ public class HiloCliente extends Thread {
                 if (datosHistorial instanceof Integer) {
                     idOtroUsuario = (Integer) datosHistorial;
                 } else {
-                    // Si es un String (username), obtener el ID
-                    UsuarioDAO usuarioDAO3 = new UsuarioDAO();
+                    UsuarioDAO usuarioDAO3 = new UsuarioDAO(); // Si es un String (username), obtener el ID
                     Usuario otroUsuario = usuarioDAO3.obtenerUsuarioPorUsername((String) datosHistorial);
                     if (otroUsuario == null) break;
                     idOtroUsuario = otroUsuario.getPk_usuario();
@@ -280,13 +273,11 @@ public class HiloCliente extends Thread {
                 if (datosGrupo instanceof Grupo) {
                     grupo = (Grupo) datosGrupo;
                 } else if (datosGrupo instanceof String) {
-                    // Formato: "titulo:invitados"
-                    String[] partes = ((String) datosGrupo).split(":", 2);
+                    String[] partes = ((String) datosGrupo).split(":", 2); // Formato: "titulo:invitados"
                     String titulo = partes[0];
                     String invitadosStr = partes.length > 1 ? partes[1] : "";
                     grupo = new Grupo(titulo, usuarioConectado.getPk_usuario());
-                    // Procesar invitados si existen
-                    if (!invitadosStr.trim().isEmpty()) {
+                    if (!invitadosStr.trim().isEmpty()) { // Procesar invitados si existen
                         String[] usernames = invitadosStr.split(",");
                         InvitacionGrupoDAO invDAO5 = new InvitacionGrupoDAO();
                         UsuarioDAO usuarioDAO6 = new UsuarioDAO();
@@ -309,8 +300,7 @@ public class HiloCliente extends Thread {
                 int pkGrupo = grupoDAO.crearGrupo(grupo);
                 if (pkGrupo > 0) {
                     grupo.setPk_grupo(pkGrupo);
-                    // Enviar invitaciones si se proporcionaron
-                    if (datosGrupo instanceof String) {
+                    if (datosGrupo instanceof String) { // Enviar invitaciones si se proporcionaron
                         String[] partes = ((String) datosGrupo).split(":", 2);
                         String invitadosStr = partes.length > 1 ? partes[1] : "";
                         if (!invitadosStr.trim().isEmpty()) {
@@ -364,8 +354,7 @@ public class HiloCliente extends Thread {
                 if (datosAceptar instanceof Integer) {
                     pkInvitacion = (Integer) datosAceptar;
                 } else {
-                    // Si es un ID de grupo, buscar la invitación correspondiente
-                    int idGrupoAceptar = (Integer) datosAceptar;
+                    int idGrupoAceptar = (Integer) datosAceptar; // Si es un ID de grupo, buscar la invitación correspondiente
                     InvitacionGrupoDAO invDAO7 = new InvitacionGrupoDAO();
                     List<InvitacionGrupo> todasInvitaciones = invDAO7.obtenerInvitacionesPendientes(usuarioConectado.getPk_usuario());
                     InvitacionGrupo invEncontrada = null;
@@ -441,8 +430,7 @@ public class HiloCliente extends Thread {
                 if (usuarioConectado == null) break;
                 InvitacionGrupoDAO invDAO4 = new InvitacionGrupoDAO();
                 List<InvitacionGrupo> invitaciones = invDAO4.obtenerInvitacionesPendientes(usuarioConectado.getPk_usuario());
-                // Convertir a formato esperado por el cliente
-                java.util.ArrayList<Grupo> gruposInvitaciones = new java.util.ArrayList<>();
+                java.util.ArrayList<Grupo> gruposInvitaciones = new java.util.ArrayList<>(); // Convertir a formato esperado por el cliente
                 GrupoDAO grupoDAO9 = new GrupoDAO();
                 for (InvitacionGrupo invItem : invitaciones) {
                     Grupo g = grupoDAO9.obtenerGrupo(invItem.getFk_grupo());

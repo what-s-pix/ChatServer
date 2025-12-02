@@ -20,7 +20,6 @@ public class AmistadDAO {
             ps.executeUpdate();
             return true;
         } catch (SQLException e) {
-            System.err.println("Error al enviar solicitud: " + e.getMessage());
             return false;
         }
     }
@@ -31,7 +30,6 @@ public class AmistadDAO {
             ps.setInt(1, pk_amistad);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Error al aceptar solicitud: " + e.getMessage());
             return false;
         }
     }
@@ -42,7 +40,6 @@ public class AmistadDAO {
             ps.setInt(1, pk_amistad);
             return ps.executeUpdate() > 0;
         } catch (SQLException e) {
-            System.err.println("Error al rechazar solicitud: " + e.getMessage());
             return false;
         }
     }
@@ -61,7 +58,6 @@ public class AmistadDAO {
                 return rs.getInt(1) > 0;
             }
         } catch (SQLException e) {
-            System.err.println("Error al verificar amistad: " + e.getMessage());
         }
         return false;
     }
@@ -81,7 +77,6 @@ public class AmistadDAO {
                 return rs.getInt(1) > 0;
             }
         } catch (SQLException e) {
-            System.err.println("Error al verificar amistad: " + e.getMessage());
         }
         return false;
     }
@@ -112,7 +107,6 @@ public class AmistadDAO {
                 amigos.add(a);
             }
         } catch (SQLException e) {
-            System.err.println("Error al obtener amigos: " + e.getMessage());
         }
         return amigos;
     }
@@ -137,7 +131,6 @@ public class AmistadDAO {
                 solicitudes.add(a);
             }
         } catch (SQLException e) {
-            System.err.println("Error al obtener solicitudes: " + e.getMessage());
         }
         return solicitudes;
     }

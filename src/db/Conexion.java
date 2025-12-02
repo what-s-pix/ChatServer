@@ -12,9 +12,7 @@ public class Conexion {
             try {
                 Class.forName("com.mysql.cj.jdbc.Driver");
                 instance = DriverManager.getConnection(URL, USER, PASSWORD);
-                System.out.println(">>> Conexión a BD exitosa.");
             } catch (ClassNotFoundException e) {
-                System.err.println("ERROR: No se encontró el Driver de MySQL.");
                 throw new SQLException(e);
             }
         }
@@ -25,7 +23,6 @@ public class Conexion {
             try {
                 instance.close();
             } catch (SQLException e) {
-                e.printStackTrace();
             }
         }
     }

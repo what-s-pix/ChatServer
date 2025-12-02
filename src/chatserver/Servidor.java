@@ -20,17 +20,15 @@ public class Servidor extends JFrame {
     public static ArrayList<HiloCliente> clientesConectados = new ArrayList<>();
     private SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss");
     public Servidor() {
-        super("Visor del Servidor - What's Pix Chat");
+        super("Servidor");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(800, 600);
         setLayout(new BorderLayout());
-        JPanel panelInfo = new JPanel(new GridLayout(1, 3));
+        JPanel panelInfo = new JPanel(new GridLayout(1, 2));
         lblEstado = new JLabel("Estado: Iniciando...");
         lblClientes = new JLabel("Clientes conectados: 0");
-        JLabel lblFecha = new JLabel("Fecha: " + new SimpleDateFormat("dd/MM/yyyy").format(new Date()));
         panelInfo.add(lblEstado);
         panelInfo.add(lblClientes);
-        panelInfo.add(lblFecha);
         txtLog = new JTextArea();
         txtLog.setEditable(false);
         txtLog.setFont(new java.awt.Font("Monospaced", java.awt.Font.PLAIN, 11));
@@ -42,18 +40,10 @@ public class Servidor extends JFrame {
     }
     private void iniciarRed() {
         int puerto = 5000;
-        log("========================================");
-        log("SERVIDOR WHAT'S PIX CHAT INICIADO");
-        log("========================================");
-        log("Puerto: " + puerto);
-        log("Fecha/Hora: " + new Date());
-        log("----------------------------------------");
         SwingUtilities.invokeLater(() -> {
-            lblEstado.setText("Estado: Activo - Puerto " + puerto);
+            lblEstado.setText("puerto:" + puerto);
         });
         try (ServerSocket serverSocket = new ServerSocket(puerto)) {
-            log("Servidor esperando conexiones en puerto " + puerto + "...");
-            log("----------------------------------------");
             while (true) {
                 Socket socketCliente = serverSocket.accept();
                 log("[" + sdf.format(new Date()) + "] Nueva conexión: " + socketCliente.getInetAddress().getHostAddress());

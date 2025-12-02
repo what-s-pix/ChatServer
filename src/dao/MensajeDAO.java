@@ -18,7 +18,6 @@ public class MensajeDAO {
             ps.executeUpdate();
             return true;
         } catch (SQLException e) {
-            System.err.println("Error al guardar mensaje: " + e.getMessage());
             return false;
         }
     }
@@ -49,7 +48,6 @@ public class MensajeDAO {
                 mensajes.add(m);
             }
         } catch (SQLException e) {
-            System.err.println("Error al obtener historial: " + e.getMessage());
         }
         return mensajes;
     }

@@ -18,6 +18,14 @@ public class Mensaje implements Serializable {
         this.mensaje = mensaje;
         this.leido = false;
     }
+    public Mensaje(String remitenteUsername, String destinatarioUsername, String mensaje) {
+        this.nombreRemitente = remitenteUsername;
+        this.nombreDestinatario = destinatarioUsername;
+        this.mensaje = mensaje;
+        this.fk_remitente = 0;
+        this.fk_destinatario = 0;
+        this.leido = false;
+    }
     public int getPk_mensaje() { return pk_mensaje; }
     public void setPk_mensaje(int pk_mensaje) { this.pk_mensaje = pk_mensaje; }
     public int getFk_remitente() { return fk_remitente; }
@@ -34,4 +42,8 @@ public class Mensaje implements Serializable {
     public void setNombreRemitente(String nombreRemitente) { this.nombreRemitente = nombreRemitente; }
     public String getNombreDestinatario() { return nombreDestinatario; }
     public void setNombreDestinatario(String nombreDestinatario) { this.nombreDestinatario = nombreDestinatario; }
+    public String getRemitente() { return nombreRemitente != null ? nombreRemitente : "Usuario"; }
+    public String getContenido() { return mensaje; }
+    public int getId() { return pk_mensaje; }
+    public void setId(int id) { this.pk_mensaje = id; }
 }

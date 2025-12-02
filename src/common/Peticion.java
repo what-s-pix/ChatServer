@@ -8,10 +8,6 @@ public class Peticion implements Serializable {
         this.accion = accion;
         this.datos = datos;
     }
-    public String getAccion() {
-        return accion;
-    }
-    public Object getDatos() {
-        return datos;
-    }
+    public String getAccion() { return accion; }
+    public Object getDatos() { return datos; }
 }
